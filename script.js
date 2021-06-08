@@ -4,7 +4,6 @@ var express = require('express');
 var passport = require('passport');
 var bodyParser = require('body-parser');
  var LdapStrategy = require('passport-ldapauth').Strategy;
-var 
 //passport.use(new LdapStrategy(OPTS));
 
 //app.use(bodyParser.json());
@@ -53,9 +52,11 @@ if(err){
  });
 })*/
 
-
+app.use(passport.initialize())
+app.use(passport.session());
 passport.use('ldapauth',new CustomStratergy(
   function(req,callback){
+    console.log(req.body)
     var options = {
       url: 'ldap://localhost',
       bindDn:'cn=admin,dc=users,dc=com',
@@ -65,26 +66,39 @@ passport.use('ldapauth',new CustomStratergy(
       reconnect: true
     };
 
-    var auth = new LdapAuth(options);
+    let auth = new LdapAuth(options);
     auth.on('error', function (err) {
       console.error('LdapAuth: ', err);
     });
-    auth.authenticate(req.body.mail,req.data.password, function(err, user) { 
+    auth.authenticate(req.body.mail,req.body.password, function(err, user) { 
       console.log(err,user)
       if(err){
-        return callback(err);
+        return callback(null, false, 'bad password')
       } else {
         auth.close(function(err) { })
         return callback(null,user);
+
+/*        passport.serializeUser(function(user, callback) {
+          console.log('serializeUser')
+          return callback(null, user);
+        });
+        passport.deserializeUser(function(user, callback) {
+          console.log('d-serializeUser')
+        return callback(null, user);
+      });*/
       }
     });
   }
 
   ))
-
-
+app.get('/fail',function(req,res){
+  res.send('failed auth!!!')
+})
+app.get('/success',function(req,res){
+  res.send('success auth!!!')
+})
   app.post('/login',
-  passport.authenticate('ldapauth', { failureRedirect: '/fail' }),
+  passport.authenticate('ldapauth', { failureRedirect: '/fail',session: false,failWithError:true }),
   function(req, res) {
     res.redirect('/success');
   }
