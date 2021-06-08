@@ -4,7 +4,7 @@ var express = require('express');
 var passport = require('passport');
 var bodyParser = require('body-parser');
  var LdapStrategy = require('passport-ldapauth').Strategy;
-
+var 
 //passport.use(new LdapStrategy(OPTS));
 
 //app.use(bodyParser.json());
@@ -13,12 +13,14 @@ var bodyParser = require('body-parser');
 //console.log(JSON.stringify(passport.authenticate('ldapauth', {session: false})))
 
 var LdapAuth = require('ldapauth-fork');
+let CustomStratergy=require('passport-custom').Strategy;
+
 var app = express();
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({extended: false}));
 
 
-app.post('/login', function(req, res, next) {
+/*app.post('/login', function(req, res, next) {
 	let data=req.body;
   console.log(data)
     res.header("Access-Control-Allow-Origin", "*");
@@ -29,7 +31,7 @@ app.post('/login', function(req, res, next) {
   bindDn:'cn=admin,dc=users,dc=com',
   bindCredentials:'demo1234',
     searchBase: 'dc=users,dc=com',
-  searchFilter: 'mail='+data.mail,
+  searchFilter: 'mail='+data.mail'',
   reconnect: true
 };
 var auth = new LdapAuth(options);
@@ -49,7 +51,44 @@ if(err){
 
 
  });
-})
+})*/
+
+
+passport.use('ldapauth',new CustomStratergy(
+  function(req,callback){
+    var options = {
+      url: 'ldap://localhost',
+      bindDn:'cn=admin,dc=users,dc=com',
+      bindCredentials:'demo1234',
+      searchBase: 'dc=users,dc=com',
+      searchFilter: 'mail='+req.body.mail,
+      reconnect: true
+    };
+
+    var auth = new LdapAuth(options);
+    auth.on('error', function (err) {
+      console.error('LdapAuth: ', err);
+    });
+    auth.authenticate(req.body.mail,req.data.password, function(err, user) { 
+      console.log(err,user)
+      if(err){
+        return callback(err);
+      } else {
+        auth.close(function(err) { })
+        return callback(null,user);
+      }
+    });
+  }
+
+  ))
+
+
+  app.post('/login',
+  passport.authenticate('ldapauth', { failureRedirect: '/fail' }),
+  function(req, res) {
+    res.redirect('/success');
+  }
+);
 
 
 var server = app.listen(8080, function() {
